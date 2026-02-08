@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 
 def print_tree(path: Path, pad: int = 0, *, show_hidden: bool = False):
@@ -26,6 +27,20 @@ class FileSnap:
             result += sub._rec_repr(pad + 4)
         return result
 
+    @classmethod
+    def diff(cls, left: list[FileSnap], right: list[FileSnap]):
+        left_dict = { snap.name: snap.m_time for snap in left }
+        right_dict = { snap.name: snap.m_time for snap in right }
+        intersect = right_dict.keys() & left_dict.keys()
+        updated = set()
+        for key in intersect:
+            if left_dict[key] != right_dict[key]: updated.add(key)
+        return {
+                'added': right_dict.keys() - left_dict.keys(),
+                'removed': left_dict.keys() - right_dict.keys(),
+                'updated': updated
+                }
+
 def snapshot(path: Path, track_hidden: bool=False) -> FileSnap:
     result = FileSnap(path.name, path.stat().st_mtime)
     if path.is_file():
@@ -41,8 +56,16 @@ def snapshot(path: Path, track_hidden: bool=False) -> FileSnap:
     return result
 
 
+def diff(prev: FileSnap, curr: FileSnap):
+    if prev.contents and curr.contents:
+        print(FileSnap.diff(prev.contents, curr.contents))
+
 if __name__ == '__main__':
     p = Path().resolve()
-    snap = snapshot(p)
-    print(snap)
+    prev = snapshot(p)
+    while True:
+        time.sleep(.3)
+        curr = snapshot(p)
+        diff(prev, curr)
+        prev = curr
 
